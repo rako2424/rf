@@ -7,12 +7,12 @@ import {
   useLocation,
   useNavigate
 } from 'react-router-dom';
+import type { User } from 'firebase/auth';
 import { 
   onAuthStateChanged, 
   signOut, 
   sendEmailVerification
 } from 'firebase/auth';
-import type { User } from 'firebase/auth';
 import { 
   doc, 
   getDoc, 
@@ -670,7 +670,7 @@ export default function App() {
           // Listen for ban status
           bannedUnsubscribe = onSnapshot(doc(db, 'bannedUsers', currentUser.email), async (docSnapshot) => {
             if (docSnapshot.exists()) {
-            await signOut(auth);
+              await signOut(auth);
               setUser(null);
               setUserProfile(null);
               setLoading(false);
