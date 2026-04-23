@@ -138,15 +138,14 @@ async function startServer() {
 
   // GitHub Webhook for Auto-Deploy
   app.post("/api/deploy", (req, res) => {
-    console.log("GitHub-dan yenilənmə siqnalı gəldi...");
-    // Burada gizli bir açar (secret) yoxlaya bilərik, amma hələlik sadə olsun
-    exec("sh ./update.sh", (error, stdout, stderr) => {
+    console.log("GitHub Webhook Signal Received!");
+    exec("cd " + process.cwd() + " && sh ./update.sh", (error, stdout, stderr) => {
       if (error) {
-        console.error(`Xəta: ${error.message}`);
-        return res.status(500).json({ error: "Yenilənmə zamanı xəta" });
+        console.error(`Deploy Error: ${error.message}`);
+        return res.status(500).json({ status: "error", message: error.message });
       }
-      console.log(`Nəticə: ${stdout}`);
-      res.json({ status: "Yenilənmə başladıldı" });
+      console.log(`Deploy Success: ${stdout}`);
+      res.json({ status: "success", detail: "Deployment triggered successfully" });
     });
   });
 
