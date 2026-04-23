@@ -4,6 +4,7 @@ import path from "path";
 import fs from "fs";
 import Database from "better-sqlite3";
 import { fileURLToPath } from "url";
+import { exec } from "child_process";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -133,6 +134,20 @@ async function startServer() {
   // API Routes
   app.get("/api/health", (req, res) => {
     res.json({ status: "ok" });
+  });
+
+  // GitHub Webhook for Auto-Deploy
+  app.post("/api/deploy", (req, res) => {
+    console.log("GitHub-dan yenilənmə siqnalı gəldi...");
+    // Burada gizli bir açar (secret) yoxlaya bilərik, amma hələlik sadə olsun
+    exec("sh ./update.sh", (error, stdout, stderr) => {
+      if (error) {
+        console.error(`Xəta: ${error.message}`);
+        return res.status(500).json({ error: "Yenilənmə zamanı xəta" });
+      }
+      console.log(`Nəticə: ${stdout}`);
+      res.json({ status: "Yenilənmə başladıldı" });
+    });
   });
 
   // Generic CRUD for collections to simulate Firestore
