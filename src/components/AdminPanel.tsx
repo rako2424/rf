@@ -51,7 +51,7 @@ export default function AdminPanel({ isAdmin }: { isAdmin: boolean }) {
       }, { merge: true });
       alert('API açarı uğurla yadda saxlanıldı!');
     } catch (error) {
-      handleFirestoreError(error, OperationType.WRITE, 'settings/ai_config');
+      handleFirestoreError(error, OperationType.WRITE);
     } finally {
       setIsSavingKey(false);
     }
@@ -76,7 +76,7 @@ export default function AdminPanel({ isAdmin }: { isAdmin: boolean }) {
       setUserMessages(msgs);
       setMessagesLoading(false);
     }, (error) => {
-      handleFirestoreError(error, OperationType.LIST, 'messages');
+      handleFirestoreError(error, OperationType.LIST);
       setMessagesLoading(false);
     });
 
@@ -95,7 +95,7 @@ export default function AdminPanel({ isAdmin }: { isAdmin: boolean }) {
       setPendingUsers(usersData.filter(u => u.status === 'pending'));
       setLoading(false);
     }, (error) => {
-      handleFirestoreError(error, OperationType.LIST, 'users');
+      handleFirestoreError(error, OperationType.LIST);
       setLoading(false);
     });
 

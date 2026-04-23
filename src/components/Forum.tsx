@@ -114,7 +114,7 @@ export default function Forum({ userProfile, isAdmin, onImageClick }: { userProf
       setNewCategory('Təmir');
       setShowNewPost(false);
     } catch (err) {
-      handleFirestoreError(err, OperationType.CREATE, 'posts');
+      handleFirestoreError(err, OperationType.CREATE);
     } finally {
       setLoading(false);
     }

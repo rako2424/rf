@@ -549,7 +549,7 @@ export default function App() {
               console.error("Error fetching sender photo:", e);
             }
 
-      showToast(data.content || 'Yeni bir mesajınız var.', 'info', {
+            showToast(data.content || 'Yeni bir mesajınız var.', 'info', {
               duration: 2000,
               onClick: () => {
                 navigate(`/messages?userId=${data.senderId}`);
