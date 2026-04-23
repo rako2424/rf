@@ -28,7 +28,7 @@ export interface FirestoreErrorInfo {
   }
 }
 
-export function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
+export function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null = null) {
   const errorMessage = error instanceof Error ? error.message : String(error);
   
   // Handle Quota Exceeded error gracefully
