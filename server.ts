@@ -222,18 +222,30 @@ async function startServer() {
     res.json(user);
   });
 
-  // Vite development middleware
-  const distPath = path.join(process.cwd(), "dist");
+  // Production detection and static file serving
+  const distPath = path.resolve(process.cwd(), "dist");
   const isProduction = process.env.NODE_ENV === "production" || fs.existsSync(distPath);
 
   if (isProduction) {
-    console.log("Serving production build from:", distPath);
+    console.log(`[PRODUCTION] Path: ${distPath}`);
+    // Check if dist exists and log its contents for debugging
+    if (fs.existsSync(distPath)) {
+      console.log("[PRODUCTION] Dist folder found. Files:", fs.readdirSync(distPath).join(", "));
+    } else {
+      console.error("[PRODUCTION] ERROR: Dist folder NOT found at " + distPath);
+    }
+    
     app.use(express.static(distPath));
     app.get("*", (req, res) => {
-      res.sendFile(path.join(distPath, "index.html"));
+      const indexPath = path.join(distPath, "index.html");
+      if (fs.existsSync(indexPath)) {
+        res.sendFile(indexPath);
+      } else {
+        res.status(404).send("index.html tapılmadı! Zəhmət olmasa 'npm run build' işlədin.");
+      }
     });
   } else {
-    console.log("Starting Vite development server...");
+    console.log("[DEVELOPMENT] Starting Vite development server...");
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: "spa",
