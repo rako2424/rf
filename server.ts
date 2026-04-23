@@ -139,7 +139,8 @@ async function startServer() {
   // GitHub Webhook for Auto-Deploy
   app.post("/api/deploy", (req, res) => {
     console.log("GitHub Webhook Signal Received!");
-    exec("cd " + process.cwd() + " && sh ./update.sh", (error, stdout, stderr) => {
+    const scriptPath = path.join(process.cwd(), "update.sh");
+    exec(`sh ${scriptPath}`, (error, stdout, stderr) => {
       if (error) {
         console.error(`Deploy Error: ${error.message}`);
         return res.status(500).json({ status: "error", message: error.message });
