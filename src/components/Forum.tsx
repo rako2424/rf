@@ -333,8 +333,14 @@ export default function Forum({ userProfile, isAdmin, onImageClick }: { userProf
                     <User size={20} />
                   )}
                 </div>
-                <div className="flex-1">
-                  <p className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-wider">{post.authorName}</p>
+                <div className="flex-1 overflow-hidden">
+                  <Link 
+                    to={`/messages?userId=${post.authorUid}`}
+                    onClick={(e) => e.stopPropagation()}
+                    className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-wider hover:text-primary transition-colors block truncate"
+                  >
+                    {post.authorName}
+                  </Link>
                   <div className="flex items-center gap-2 mt-1">
                     <span className="text-[9px] font-black uppercase tracking-widest bg-slate-100 dark:bg-slate-700 text-primary px-2 py-0.5 rounded-md">
                       {post.category || 'Ümumi'}
@@ -466,8 +472,13 @@ export default function Forum({ userProfile, isAdmin, onImageClick }: { userProf
                     <User size={20} />
                   )}
                 </div>
-                <div>
-                  <p className="font-bold text-slate-900 dark:text-white">{selectedPost.authorName}</p>
+                <div className="flex-1 overflow-hidden">
+                  <Link 
+                    to={`/messages?userId=${selectedPost.authorUid}`}
+                    className="font-bold text-slate-900 dark:text-white hover:text-primary transition-colors block truncate"
+                  >
+                    {selectedPost.authorName}
+                  </Link>
                   <div className="flex items-center gap-2 mt-1">
                     <span className="text-[9px] font-black uppercase tracking-widest bg-slate-100 dark:bg-slate-700 text-primary px-2 py-0.5 rounded-md">
                       {selectedPost.category || 'Ümumi'}
@@ -506,20 +517,13 @@ export default function Forum({ userProfile, isAdmin, onImageClick }: { userProf
                 {comments.map((comment) => (
                   <div key={comment.id} className="bg-white dark:bg-slate-800 p-3 rounded-xl border border-slate-200 dark:border-slate-700 relative group">
                     <div className="flex justify-between items-center mb-1">
-                      <div className="flex items-center gap-2">
-                        <div className="w-6 h-6 bg-slate-100 dark:bg-slate-700 rounded-lg flex items-center justify-center text-primary overflow-hidden">
-                          {comment.authorPhotoURL ? (
-                            <img 
-                              src={comment.authorPhotoURL} 
-                              alt={comment.authorName} 
-                              className="w-full h-full object-cover cursor-zoom-in hover:opacity-90 transition-opacity" 
-                              onClick={() => onImageClick && onImageClick(comment.authorPhotoURL!)}
-                            />
-                          ) : (
-                            <User size={12} />
-                          )}
-                        </div>
-                        <span className="text-xs font-bold text-primary">{comment.authorName}</span>
+                      <div className="flex items-center gap-2 overflow-hidden">
+                        <Link 
+                          to={`/messages?userId=${comment.authorUid}`}
+                          className="text-xs font-bold text-primary hover:opacity-80 transition-opacity truncate"
+                        >
+                          {comment.authorName}
+                        </Link>
                       </div>
                       <div className="flex items-center gap-2">
                         <span className="text-[10px] text-slate-500 dark:text-slate-400">

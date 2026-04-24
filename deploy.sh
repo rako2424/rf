@@ -1,12 +1,14 @@
 #!/bin/bash
 
-# VPS-də proqramı avtomatik quran skript
+# RF-SERVIS Avtomatik Quraşdırma Skripti (VPS üçün)
 echo "🚀 RF-SERVIS Quraşdırılır..."
 
-# 1. Update system
+# 1. Sistemi Yenilə və Lazımi Alətləri Quraşdır
+echo "📦 Sistem alətləri quraşdırılır..."
 sudo apt update && sudo apt upgrade -y
+sudo apt install -y unzip build-essential python3
 
-# 2. Install Node.js (if not installed)
+# 2. Node.js Quraşdır (Yoxdursa)
 if ! command -v node &> /dev/null
 then
     echo "📦 Node.js quraşdırılır..."
@@ -14,24 +16,35 @@ then
     sudo apt-get install -y nodejs
 fi
 
-# 3. Install PM2 (Process Manager)
+# 3. PM2 Quraşdır
 sudo npm install -g pm2
 
-# 4. Clone/Update code (Siz bura github linkinizi qoyacaqsınız)
-# git clone <sizin-github-linki> app
-# cd app
+# 4. ZIP faylını çıxar
+if [ -f "rf-servis.zip" ]; then
+    echo "📂 Fayllar çıxarılır..."
+    unzip -o rf-servis.zip
+fi
 
-# 5. Install dependencies
+# 5. Təmiz quraşdırma (Köhnə node_modules silinir)
+echo "📥 Kitabxanalar yüklənir..."
+rm -rf node_modules package-lock.json
 npm install
 
-# 6. Build frontend
+# 6. Frontend Build
+echo "🏗️ Frontend hazırlanır (Build)..."
 npm run build
 
-# 7. Start server with PM2
-pm2 start server.ts --interpreter ./node_modules/.bin/tsx --name "rf-servis"
+# 7. Serveri PM2 ilə başlat
+echo "⚙️ Server başladılır..."
+pm2 stop rf-servis 2>/dev/null || true
+NODE_ENV=production pm2 start server.ts --interpreter ./node_modules/.bin/tsx --name "rf-servis"
 
-# 8. Setup PM2 to start on boot
+# 8. Başlanğıcda avtomatik dostu et
 pm2 save
 pm2 startup
 
-echo "✅ Quraşdırma tamamlandı! Server 3000 portunda işləyir."
+echo "===================================================="
+echo "✅ TƏBRİKLƏR! RF-SERVIS UĞURLA QURAŞDIRILDI."
+echo "🌐 Saytınız 3000 portunda işləyir."
+echo "💡 PM2 statusunu yoxlamaq üçün: pm2 status"
+echo "===================================================="
