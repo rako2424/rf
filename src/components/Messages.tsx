@@ -423,7 +423,10 @@ export default function Messages({ userProfile, onImageClick }: { userProfile: U
                   ) : null}
                 </h3>
                 <p className="text-xs text-slate-500 dark:text-slate-400 truncate">
-                  {isUserOnline(selectedUser) ? 'Onlayn' : selectedUser.lastSeen ? `Son görülmə: ${formatDistanceToNow(selectedUser.lastSeen?.toDate?.() || Date.now(), { addSuffix: true, locale: az })}` : 'Oflayn'}
+                  {isUserOnline(selectedUser) ? 'Onlayn' : selectedUser.lastSeen ? `Son görülmə: ${formatDistanceToNow(
+                    typeof selectedUser.lastSeen.toDate === 'function' ? selectedUser.lastSeen.toDate() : new Date(selectedUser.lastSeen as any), 
+                    { addSuffix: true, locale: az }
+                  )}` : 'Oflayn'}
                 </p>
               </div>
             </div>
@@ -442,9 +445,14 @@ export default function Messages({ userProfile, onImageClick }: { userProfile: U
                         : 'bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white rounded-bl-none border border-slate-200 dark:border-slate-700'
                     }`}>
                       <p className="text-sm whitespace-pre-wrap break-words selectable-text">{msg.content}</p>
-                      <p className={`text-[10px] mt-1 text-right ${isMine ? 'text-primary-foreground/70' : 'text-slate-500 dark:text-slate-400'}`}>
-                        {msg.createdAt ? formatDistanceToNow(msg.createdAt.toDate(), { addSuffix: true, locale: az }) : 'İndi'}
-                      </p>
+                  <p className={`text-[10px] mt-1 text-right ${isMine ? 'text-primary-foreground/70' : 'text-slate-500 dark:text-slate-400'}`}>
+                    {msg.createdAt 
+                      ? formatDistanceToNow(
+                          typeof msg.createdAt.toDate === 'function' ? msg.createdAt.toDate() : new Date(msg.createdAt as any), 
+                          { addSuffix: true, locale: az }
+                        ) 
+                      : 'İndi'}
+                  </p>
                     </div>
                   </div>
                 );

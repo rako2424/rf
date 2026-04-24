@@ -7,10 +7,10 @@ import {
   useLocation,
   useNavigate
 } from 'react-router-dom';
-import type { User } from 'firebase/auth';
 import { 
   onAuthStateChanged, 
   signOut, 
+  User,
   sendEmailVerification
 } from 'firebase/auth';
 import { 
@@ -551,6 +551,9 @@ export default function App() {
 
             showToast(data.content || 'Yeni bir mesajınız var.', 'info', {
               duration: 2000,
+              isMessage: true,
+              senderName: data.senderName || 'Anonim',
+              senderPhoto: senderPhoto,
               onClick: () => {
                 navigate(`/messages?userId=${data.senderId}`);
               }
@@ -681,7 +684,7 @@ export default function App() {
               setQuotaExceeded(true);
               setLoading(false);
             } else {
-            handleFirestoreError(error, OperationType.GET);
+              handleFirestoreError(error, OperationType.GET, `bannedUsers/${currentUser.email}`);
             }
           });
         }
@@ -715,7 +718,7 @@ export default function App() {
               setLoading(false);
             } else {
               try {
-                handleFirestoreError(error, OperationType.GET);
+                handleFirestoreError(error, OperationType.GET, `users/${currentUser.uid}`);
               } catch (e) {
                 console.error("Firestore error handled:", e);
               }
@@ -947,55 +950,6 @@ export default function App() {
     <ErrorBoundary>
       {!user ? (
         <Auth />
-      ) : !user.emailVerified ? (
-        <div className="min-h-screen flex flex-col items-center justify-center bg-white dark:bg-slate-900 text-center p-6 space-y-8 transition-colors duration-300">
-          <motion.div 
-            animate={{ 
-              scale: [1, 1.1, 1],
-              opacity: [0.5, 1, 0.5]
-            }}
-            transition={{ duration: 2, repeat: Infinity }}
-            className="w-24 h-24 bg-primary/20 text-primary rounded-full flex items-center justify-center shadow-[0_0_30px_rgba(6,182,212,0.2)]"
-          >
-            <Mail size={48} />
-          </motion.div>
-          <div className="space-y-4">
-            <h2 className="text-3xl font-black text-slate-900 dark:text-white tracking-tighter uppercase">E-poçt Təsdiqlənməyib</h2>
-            <div className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-6 rounded-[2rem] max-w-md mx-auto shadow-xl">
-              <p className="text-slate-600 dark:text-slate-300 font-medium leading-relaxed">
-                Hörmətli <span className="text-primary font-bold">{user.displayName || user.email?.split('@')[0]}</span>, 
-                zəhmət olmasa e-poçt ünvanınıza göndərilən linkə klikləyərək hesabınızı təsdiqləyin.
-              </p>
-              <div className="h-px bg-slate-200 dark:bg-slate-700 my-4" />
-              <p className="text-slate-500 dark:text-slate-400 text-sm">
-                Əgər məktub gəlməyibsə, "Spam" qovluğunu yoxlayın və ya yenidən göndərilməsini xahiş edin.
-              </p>
-            </div>
-            <div className="flex flex-col sm:flex-row gap-3 justify-center">
-              <button 
-                onClick={handleReload}
-                className="px-8 py-4 bg-primary text-white rounded-2xl font-bold hover:bg-cyan-600 transition-all flex items-center justify-center gap-2 shadow-lg shadow-cyan-500/20 active:scale-95"
-              >
-                <RefreshCw size={20} />
-                Təsdiqlədim
-              </button>
-              <button 
-                onClick={handleResendEmail}
-                className="px-8 py-4 bg-amber-500 text-white rounded-2xl font-bold hover:bg-amber-600 transition-all flex items-center justify-center gap-2 shadow-lg shadow-amber-500/20 active:scale-95"
-              >
-                <Mail size={20} />
-                Yenidən Göndər
-              </button>
-              <button 
-                onClick={handleLogout}
-                className="px-8 py-4 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-2xl font-bold hover:bg-slate-200 dark:hover:bg-slate-700 transition-all flex items-center justify-center gap-2 border border-slate-200 dark:border-slate-700 active:scale-95"
-              >
-                <LogOut size={20} />
-                Hesabdan Çıx
-              </button>
-            </div>
-          </div>
-        </div>
       ) : quotaExceeded ? (
         <div className="min-h-screen bg-white dark:bg-slate-900 flex flex-col items-center justify-center p-6 text-center transition-colors duration-300">
           <div className="w-20 h-20 bg-amber-500/10 text-amber-500 rounded-full flex items-center justify-center mb-6 shadow-inner">

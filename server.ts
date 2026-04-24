@@ -1,261 +1,248 @@
-import express from "express";
-import { createServer as createViteServer } from "vite";
-import path from "path";
-import fs from "fs";
-import Database from "better-sqlite3";
-import { fileURLToPath } from "url";
-import { exec } from "child_process";
+
+import express from 'express';
+import { createServer } from 'http';
+import { Server } from 'socket.io';
+import sqlite3 from 'better-sqlite3';
+import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
+import fs from 'fs';
+import { createServer as createViteServer } from 'vite';
 
 const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-const db = new Database("database.db");
-
-// Initialize Database Schema based on blueprint
-function initDb() {
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS users (
-      uid TEXT PRIMARY KEY,
-      email TEXT UNIQUE,
-      displayName TEXT,
-      photoURL TEXT,
-      phoneNumber TEXT,
-      role TEXT,
-      userType TEXT,
-      status TEXT,
-      isOnline INTEGER,
-      lastSeen TEXT,
-      banned INTEGER,
-      showLocation INTEGER,
-      location TEXT,
-      workplaceName TEXT,
-      workplaceAddress TEXT,
-      shopPhotoURL TEXT,
-      equipmentPhotoURL TEXT,
-      createdAt TEXT
-    );
-
-    CREATE TABLE IF NOT EXISTS posts (
-      id TEXT PRIMARY KEY,
-      authorUid TEXT,
-      authorName TEXT,
-      title TEXT,
-      content TEXT,
-      createdAt TEXT,
-      category TEXT,
-      likes TEXT
-    );
-
-    CREATE TABLE IF NOT EXISTS comments (
-      id TEXT PRIMARY KEY,
-      postId TEXT,
-      authorUid TEXT,
-      authorName TEXT,
-      content TEXT,
-      createdAt TEXT,
-      likes TEXT
-    );
-
-    CREATE TABLE IF NOT EXISTS products (
-      id TEXT PRIMARY KEY,
-      name TEXT,
-      description TEXT,
-      price REAL,
-      imageUrl TEXT,
-      category TEXT,
-      isDigital INTEGER,
-      downloadUrl TEXT
-    );
-
-    CREATE TABLE IF NOT EXISTS frpRequests (
-      id TEXT PRIMARY KEY,
-      userId TEXT,
-      userEmail TEXT,
-      userName TEXT,
-      phoneModel TEXT,
-      androidVersion TEXT,
-      imei TEXT,
-      serialNumber TEXT,
-      status TEXT,
-      price REAL,
-      createdAt TEXT,
-      updatedAt TEXT
-    );
-
-    CREATE TABLE IF NOT EXISTS notifications (
-      id TEXT PRIMARY KEY,
-      userId TEXT,
-      title TEXT,
-      body TEXT,
-      link TEXT,
-      createdAt TEXT,
-      read INTEGER
-    );
-
-    CREATE TABLE IF NOT EXISTS driveFiles (
-      id TEXT PRIMARY KEY,
-      name TEXT,
-      type TEXT,
-      url TEXT,
-      parentId TEXT,
-      kitType TEXT,
-      description TEXT,
-      createdAt TEXT,
-      createdBy TEXT,
-      storagePath TEXT
-    );
-    
-    CREATE TABLE IF NOT EXISTS ads (
-      id TEXT PRIMARY KEY,
-      title TEXT,
-      imageUrl TEXT,
-      link TEXT,
-      active INTEGER,
-      createdAt TEXT
-    );
-
-    -- Seed Admin User
-    INSERT OR IGNORE INTO users (uid, email, displayName, role, status, createdAt) 
-    VALUES ('admin_1', 'rfservis2026@gmail.com', 'Admin RF', 'admin', 'active', datetime('now'));
-    
-    INSERT OR IGNORE INTO users (uid, email, displayName, role, status, createdAt) 
-    VALUES ('admin_2', 'rauf2289@gmail.com', 'Rauf Admin', 'admin', 'active', datetime('now'));
-  `);
-}
-
-initDb();
+const __dirname = dirname(__filename);
 
 async function startServer() {
   const app = express();
-  const PORT = 3000;
-
-  app.use(express.json());
-
-  // API Routes
-  app.get("/api/health", (req, res) => {
-    res.json({ status: "ok" });
+  const httpServer = createServer(app);
+  const io = new Server(httpServer, {
+    cors: { origin: "*" }
   });
 
-  // GitHub Webhook for Auto-Deploy
-  app.post("/api/deploy", (req, res) => {
-    console.log("GitHub Webhook Signal Received!");
-    const scriptPath = path.join(process.cwd(), "update.sh");
-    exec(`sh ${scriptPath}`, (error, stdout, stderr) => {
-      if (error) {
-        console.error(`Deploy Error: ${error.message}`);
-        return res.status(500).json({ status: "error", message: error.message });
+  app.use(express.json({ limit: '10mb' }));
+
+  // Ensure uploads directory exists
+  const uploadsDir = join(process.cwd(), 'uploads');
+  if (!fs.existsSync(uploadsDir)) {
+    fs.mkdirSync(uploadsDir, { recursive: true });
+  }
+  app.use('/uploads', express.static(uploadsDir));
+
+  // File Upload Route
+  app.post('/api/upload', (req, res) => {
+    const { file, fileName } = req.body; // base64
+    if (!file || !fileName) return res.status(400).send('Missing file or fileName');
+    
+    // Remove metadata from base64 if present
+    const base64Data = file.replace(/^data:image\/\w+;base64,/, "");
+    const buffer = Buffer.from(base64Data, 'base64');
+    
+    // sanitize filename
+    const safeName = fileName.replace(/[^a-z0-9.]/gi, '_').toLowerCase();
+    const filePath = join(uploadsDir, safeName);
+    
+    // Ensure parent dir exists
+    const dir = dirname(filePath);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+
+    fs.writeFile(filePath, buffer, (err) => {
+      if (err) {
+        console.error(err);
+        return res.status(500).send('Save failed');
       }
-      console.log(`Deploy Success: ${stdout}`);
-      res.json({ status: "success", detail: "Deployment triggered successfully" });
+      res.json({ url: `/uploads/${safeName}` });
     });
   });
 
-  // Generic CRUD for collections to simulate Firestore
-  app.get("/api/db/:collection", (req, res) => {
-    const { collection } = req.params;
+  // Database setup
+  const db = sqlite3('database.db');
+  db.pragma('journal_mode = WAL');
+
+  // Initialize schema
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS users (
+      id TEXT PRIMARY KEY,
+      email TEXT UNIQUE NOT NULL,
+      password TEXT NOT NULL,
+      role TEXT DEFAULT 'user'
+    );
+
+    CREATE TABLE IF NOT EXISTS documents (
+      id TEXT NOT NULL,
+      collectionName TEXT NOT NULL,
+      data TEXT NOT NULL,
+      PRIMARY KEY(id, collectionName)
+    );
+  `);
+
+  const JWT_SECRET = process.env.JWT_SECRET || 'rf-servis-default-secret-2026';
+
+  // Middleware for auth
+  const authenticateToken = (req: any, res: any, next: any) => {
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1];
+    if (!token) return res.sendStatus(401);
+    jwt.verify(token, JWT_SECRET, (err: any, user: any) => {
+      if (err) return res.sendStatus(403);
+      req.user = user;
+      next();
+    });
+  };
+
+  // Auth Routes
+  app.post('/api/auth/register', (req, res) => {
+    const { email, password, displayName, userType } = req.body;
+    const id = Math.random().toString(36).substr(2, 9);
+    const hashedPassword = bcrypt.hashSync(password, 10);
+    const role = email.toLowerCase() === 'rauf2289@gmail.com' ? 'admin' : 'user';
+
     try {
-      const rows = db.prepare(`SELECT * FROM ${collection}`).all();
-      // Parse JSON strings back to objects
-      const parsed = rows.map(row => {
-        const item = { ...row };
-        if (item.location && typeof item.location === 'string') item.location = JSON.parse(item.location);
-        if (item.likes && typeof item.likes === 'string') item.likes = JSON.parse(item.likes);
-        return item;
+      db.prepare('INSERT INTO users (id, email, password, role) VALUES (?, ?, ?, ?)').run(id, email, hashedPassword, role);
+      
+      const userData = { 
+        uid: id, 
+        id, 
+        email, 
+        displayName: displayName || email.split('@')[0], 
+        userType: userType || 'user', 
+        role, 
+        createdAt: new Date().toISOString(), 
+        status: 'active', 
+        emailVerified: true 
+      };
+      db.prepare('INSERT INTO documents (id, collectionName, data) VALUES (?, ?, ?)').run(id, 'users', JSON.stringify(userData));
+      
+      const token = jwt.sign({ id, email, role }, JWT_SECRET);
+      res.json({ token, user: userData });
+    } catch (err: any) {
+      if (err.message && err.message.includes('UNIQUE constraint failed')) {
+        return res.status(400).json({ code: 'auth/email-already-in-use', message: 'Bu e-poçt artıq istifadə olunur.' });
+      }
+      console.error(err);
+      res.status(400).json({ code: 'auth/internal-error', message: 'Qeydiyyat zamanı xəta baş verdi' });
+    }
+  });
+
+  app.post('/api/auth/login', (req, res) => {
+    const { email, password } = req.body;
+    try {
+      const user: any = db.prepare('SELECT * FROM users WHERE email = ?').get(email);
+
+      if (!user || !bcrypt.compareSync(password, user.password)) {
+        return res.status(400).json({ code: 'auth/invalid-credential', message: 'E-poçt və ya şifrə yanlışdır.' });
+      }
+
+      const doc: any = db.prepare('SELECT data FROM documents WHERE id = ? AND collectionName = ?').get(user.id, 'users');
+      const userData = doc ? JSON.parse(doc.data) : { id: user.id, uid: user.id, email: user.email, role: user.role };
+      
+      const token = jwt.sign({ id: user.id, email: user.email, role: user.role }, JWT_SECRET);
+      res.json({ token, user: userData });
+    } catch (err) {
+      res.status(500).json({ code: 'auth/internal-error', message: 'Giriş zamanı xəta baş verdi' });
+    }
+  });
+
+  // Generic Firestore-like API
+  app.get('/api/firestore/:collection/:id', (req, res) => {
+    const row: any = db.prepare('SELECT data FROM documents WHERE id = ? AND collectionName = ?').get(req.params.id, req.params.collection);
+    res.json(row ? JSON.parse(row.data) : null);
+  });
+
+  app.post('/api/firestore/:collection/:id', authenticateToken, (req, res) => {
+    const { data } = req.body;
+    const json = JSON.stringify({ ...data, id: req.params.id });
+    db.prepare('INSERT OR REPLACE INTO documents (id, collectionName, data) VALUES (?, ?, ?)').run(req.params.id, req.params.collection, json);
+    io.emit(`update:${req.params.collection}`, { id: req.params.id, data });
+    io.emit(`update:${req.params.collection}:${req.params.id}`, data);
+    res.sendStatus(200);
+  });
+
+  app.patch('/api/firestore/:collection/:id', authenticateToken, (req, res) => {
+    const row: any = db.prepare('SELECT data FROM documents WHERE id = ? AND collectionName = ?').get(req.params.id, req.params.collection);
+    const existing = row ? JSON.parse(row.data) : {};
+    
+    // Handle special field updates like arrayUnion/arrayRemove
+    const data = { ...req.body };
+    Object.keys(data).forEach(key => {
+      const val = data[key];
+      if (val && typeof val === 'object' && val.type === 'arrayUnion') {
+        const currentArr = Array.isArray(existing[key]) ? existing[key] : [];
+        const toAdd = val.elements.filter((el: any) => !currentArr.includes(el));
+        data[key] = [...currentArr, ...toAdd];
+      } else if (val && typeof val === 'object' && val.type === 'arrayRemove') {
+        const currentArr = Array.isArray(existing[key]) ? existing[key] : [];
+        data[key] = currentArr.filter((el: any) => !val.elements.includes(el));
+      }
+    });
+
+    const updated = { ...existing, ...data };
+    db.prepare('INSERT OR REPLACE INTO documents (id, collectionName, data) VALUES (?, ?, ?)').run(req.params.id, req.params.collection, JSON.stringify(updated));
+    io.emit(`update:${req.params.collection}`, { id: req.params.id, data: updated });
+    io.emit(`update:${req.params.collection}:${req.params.id}`, updated);
+    res.sendStatus(200);
+  });
+
+  app.delete('/api/firestore/:collection/:id', authenticateToken, (req, res) => {
+    db.prepare('DELETE FROM documents WHERE id = ? AND collectionName = ?').run(req.params.id, req.params.collection);
+    io.emit(`update:${req.params.collection}`, { id: req.params.id, deleted: true });
+    io.emit(`update:${req.params.collection}:${req.params.id}`, null);
+    res.sendStatus(200);
+  });
+
+  app.post('/api/firestore/query', (req, res) => {
+    const { path, constraints } = req.body;
+    const rows = db.prepare('SELECT data FROM documents WHERE collectionName = ?').all(path);
+    let results = rows.map((r: any) => JSON.parse(r.data));
+
+    // Basic filtering implementation for 'where'
+    if (constraints) {
+      constraints.forEach((c: any) => {
+        if (c.type === 'where') {
+          results = results.filter(item => {
+            const val = item[c.field];
+            if (c.op === '==') return val === c.value;
+            if (c.op === 'array-contains') return Array.isArray(val) && val.includes(c.value);
+            if (c.op === 'in') return Array.isArray(c.value) && c.value.includes(val);
+            return true;
+          });
+        }
+        if (c.type === 'limit') {
+          results = results.slice(0, c.value);
+        }
       });
-      res.json(parsed);
-    } catch (e) {
-      res.status(500).json({ error: e.message });
     }
+
+    res.json(results);
   });
 
-  app.post("/api/db/:collection", (req, res) => {
-    const { collection } = req.params;
-    const data = req.body;
-    const id = data.id || Math.random().toString(36).substring(2);
-    data.id = id;
-
-    // Handle partial updates vs full inserts
-    const existing = db.prepare(`SELECT * FROM ${collection} WHERE id = ? OR (uid = ? AND '${collection}' = 'users')`).get(id, id) as any;
-    
-    let finalData = { ...data };
-    if (existing) {
-       finalData = { ...(existing as any), ...data };
-       // Handle arrayUnion/arrayRemove logic from client
-       Object.keys(data).forEach(key => {
-         if (data[key] && data[key]._type === 'arrayUnion') {
-            const currentArray = existing[key] ? (typeof existing[key] === 'string' ? JSON.parse(existing[key]) : existing[key]) : [];
-            if (!currentArray.includes(data[key].item)) {
-              currentArray.push(data[key].item);
-            }
-            finalData[key] = currentArray;
-         } else if (data[key] && data[key]._type === 'arrayRemove') {
-            const currentArray = existing[key] ? (typeof existing[key] === 'string' ? JSON.parse(existing[key]) : existing[key]) : [];
-            finalData[key] = currentArray.filter((i: any) => i !== data[key].item);
-         }
-       });
-    }
-
-    // Stringify objects for SQLite
-    const preparedData = { ...finalData };
-    if (preparedData.location && typeof preparedData.location !== 'string') preparedData.location = JSON.stringify(preparedData.location);
-    if (preparedData.likes && typeof preparedData.likes !== 'string') preparedData.likes = JSON.stringify(preparedData.likes);
-
-    const keys = Object.keys(preparedData);
-    const values = Object.values(preparedData);
-    const placeholders = keys.map(() => "?").join(",");
-
-    try {
-      db.prepare(`INSERT OR REPLACE INTO ${collection} (${keys.join(",")}) VALUES (${placeholders})`).run(...values);
-      res.json({ id, ...finalData });
-    } catch (e) {
-      res.status(500).json({ error: e.message });
-    }
+  // Test connection route
+  app.get('/api/firestore/test/connection', (req, res) => {
+    res.json({ status: 'connected' });
   });
 
-  // Auth Simulation Routes
-  app.post("/api/auth/login", (req, res) => {
-    const { email } = req.body;
-    let user = db.prepare("SELECT * FROM users WHERE email = ?").get(email);
-    if (!user) {
-      // Auto-register for demo purposes, or return error
-      return res.status(401).json({ error: "User not found" });
-    }
-    res.json(user);
+  // Socket
+  io.on('connection', (socket) => {
+    socket.on('join_room', (id) => socket.join(id));
   });
 
-  // Production detection and static file serving
-  const distPath = path.resolve(process.cwd(), "dist");
-  const isProduction = process.env.NODE_ENV === "production" || fs.existsSync(distPath);
-
-  if (isProduction) {
-    console.log(`[PRODUCTION] Path: ${distPath}`);
-    // Check if dist exists and log its contents for debugging
-    if (fs.existsSync(distPath)) {
-      console.log("[PRODUCTION] Dist folder found. Files:", fs.readdirSync(distPath).join(", "));
-    } else {
-      console.error("[PRODUCTION] ERROR: Dist folder NOT found at " + distPath);
-    }
-    
-    app.use(express.static(distPath));
-    app.get("*", (req, res) => {
-      const indexPath = path.join(distPath, "index.html");
-      if (fs.existsSync(indexPath)) {
-        res.sendFile(indexPath);
-      } else {
-        res.status(404).send("index.html tapılmadı! Zəhmət olmasa 'npm run build' işlədin.");
-      }
-    });
-  } else {
-    console.log("[DEVELOPMENT] Starting Vite development server...");
+  // Vite
+  if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: "spa",
     });
     app.use(vite.middlewares);
+  } else {
+    const distPath = join(process.cwd(), 'dist');
+    if (fs.existsSync(distPath)) {
+      app.use(express.static(distPath));
+      app.get('*', (req, res) => res.sendFile(join(distPath, 'index.html')));
+    }
   }
 
-  app.listen(PORT, "0.0.0.0", () => {
-    console.log(`Server running on http://0.0.0.0:${PORT}`);
+  httpServer.listen(3000, '0.0.0.0', () => {
+    console.log(`Server running on http://localhost:3000`);
   });
 }
 

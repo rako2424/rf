@@ -190,7 +190,12 @@ export default function NotificationsDropdown({ userId, isAdmin }: { userId: str
                     </div>
                     <p className="text-xs text-slate-400 leading-relaxed break-words whitespace-pre-wrap">{notif.body}</p>
                     <span className="text-[10px] text-slate-500 mt-1">
-                      {notif.createdAt ? formatDistanceToNow(notif.createdAt.toDate(), { addSuffix: true, locale: az }) : 'İndi'}
+                      {notif.createdAt 
+                        ? formatDistanceToNow(
+                            typeof notif.createdAt.toDate === 'function' ? notif.createdAt.toDate() : new Date(notif.createdAt as any), 
+                            { addSuffix: true, locale: az }
+                          ) 
+                        : 'İndi'}
                     </span>
                   </Link>
                 );

@@ -114,7 +114,7 @@ export default function Forum({ userProfile, isAdmin, onImageClick }: { userProf
       setNewCategory('Təmir');
       setShowNewPost(false);
     } catch (err) {
-      handleFirestoreError(err, OperationType.CREATE);
+      handleFirestoreError(err, OperationType.CREATE, 'posts');
     } finally {
       setLoading(false);
     }
@@ -341,7 +341,12 @@ export default function Forum({ userProfile, isAdmin, onImageClick }: { userProf
                     </span>
                     <div className="flex items-center gap-1 text-[10px] text-slate-500 dark:text-slate-400 font-bold">
                       <Clock size={10} />
-                      {post.createdAt?.toDate ? formatDistanceToNow(post.createdAt.toDate(), { addSuffix: true, locale: az }) : 'İndi'}
+                      {post.createdAt 
+                        ? formatDistanceToNow(
+                            typeof post.createdAt.toDate === 'function' ? post.createdAt.toDate() : new Date(post.createdAt as any), 
+                            { addSuffix: true, locale: az }
+                          ) 
+                        : 'İndi'}
                     </div>
                   </div>
                 </div>
@@ -468,7 +473,12 @@ export default function Forum({ userProfile, isAdmin, onImageClick }: { userProf
                       {selectedPost.category || 'Ümumi'}
                     </span>
                     <p className="text-xs text-slate-500 dark:text-slate-400">
-                      {selectedPost.createdAt?.toDate ? formatDistanceToNow(selectedPost.createdAt.toDate(), { addSuffix: true, locale: az }) : 'İndi'}
+                      {selectedPost.createdAt 
+                        ? formatDistanceToNow(
+                            typeof selectedPost.createdAt.toDate === 'function' ? selectedPost.createdAt.toDate() : new Date(selectedPost.createdAt as any), 
+                            { addSuffix: true, locale: az }
+                          ) 
+                        : 'İndi'}
                     </p>
                   </div>
                 </div>
@@ -513,7 +523,12 @@ export default function Forum({ userProfile, isAdmin, onImageClick }: { userProf
                       </div>
                       <div className="flex items-center gap-2">
                         <span className="text-[10px] text-slate-500 dark:text-slate-400">
-                          {comment.createdAt?.toDate ? formatDistanceToNow(comment.createdAt.toDate(), { addSuffix: true, locale: az }) : 'İndi'}
+                          {comment.createdAt 
+                            ? formatDistanceToNow(
+                                typeof comment.createdAt.toDate === 'function' ? comment.createdAt.toDate() : new Date(comment.createdAt as any), 
+                                { addSuffix: true, locale: az }
+                              ) 
+                            : 'İndi'}
                           {comment.isEdited && ' (redaktə edilib)'}
                         </span>
                         {isAdmin && editingCommentId !== comment.id && (

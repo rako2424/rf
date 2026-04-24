@@ -1,0 +1,5 @@
+{
+  "name": "RF SERVIS",
+  "description": "RF SERVIS - Mobil telefon təmiri texnikləri üçün peşəkar platforma. Telefon sxemləri, mikrosxem (IC) uyğunluq bazası, təmir bələdçiləri və usta forumu.",
+  "requestFramePermissions": ["geolocation", "microphone"]
+}

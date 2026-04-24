@@ -1,5 +1,4 @@
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { storage } from '../firebase';
+import { ref, uploadBytes, getDownloadURL, storage } from '../firebase';
 
 /**
  * Uploads a file to Firebase Storage and returns the download URL.
