@@ -251,16 +251,6 @@ export default function Home() {
         </p>
       </section>
 
-      {/* Auto-Deploy Test Banner */}
-      <section className="bg-emerald-500/10 border-2 border-emerald-500/20 p-4 rounded-3xl flex items-center justify-center gap-3">
-        <div className="w-8 h-8 bg-emerald-500 rounded-full flex items-center justify-center text-white shrink-0">
-          <CheckCircle size={18} />
-        </div>
-        <p className="text-[10px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest text-center">
-          AVTOMATİK YENİLƏNMƏ TESTİ: AKTİVDİR ✅
-        </p>
-      </section>
-
       {/* Brands Section */}
       <section>
         <div className="flex items-center justify-between mb-4">
