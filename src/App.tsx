@@ -86,7 +86,7 @@ import { handleFirestoreError, OperationType } from './utils/errorHandling';
 import ErrorBoundary from './components/ErrorBoundary';
 import { useToast } from './context/ToastContext';
 
-const Layout = ({ children, userProfile, isAdmin, onLogout, hasUnreadMessages, isDarkMode, toggleTheme, onImageClick, pendingVerificationsCount }: { 
+const Layout = ({ children, userProfile, isAdmin, onLogout, hasUnreadMessages, isDarkMode, toggleTheme, onImageClick, pendingVerificationsCount, onPlaySound }: { 
   children: React.ReactNode, 
   userProfile: UserProfile | null,
   isAdmin: boolean,
@@ -95,7 +95,8 @@ const Layout = ({ children, userProfile, isAdmin, onLogout, hasUnreadMessages, i
   isDarkMode: boolean,
   toggleTheme: () => void,
   onImageClick: (src: string) => void,
-  pendingVerificationsCount: number
+  pendingVerificationsCount: number,
+  onPlaySound: () => void
 }) => {
   const location = useLocation();
   const whatsappNumber = "+994772282424";
@@ -236,6 +237,7 @@ const Layout = ({ children, userProfile, isAdmin, onLogout, hasUnreadMessages, i
           userProfile={userProfile} 
           onClose={() => setShowProfileModal(false)}
           onImageClick={onImageClick}
+          onPlaySound={onPlaySound}
           onUpdate={(updatedProfile) => {
             // The App component will re-fetch or we can just let it be since we don't have a direct setter here
             // Actually, we can't easily update the App state from Layout without a prop.
@@ -404,35 +406,42 @@ export default function App() {
     // Pre-load notification sound
     notificationAudioRef.current = new Audio('/new.mp3');
     notificationAudioRef.current.preload = 'auto';
-    notificationAudioRef.current.volume = 0.7;
+    notificationAudioRef.current.volume = 0.8;
     
     // Interaction listener to "unlock" audio on some browsers
     const unlockAudio = () => {
       if (notificationAudioRef.current) {
-        const originalVolume = notificationAudioRef.current.volume;
-        notificationAudioRef.current.volume = 0; // Make it silent for unlocking
-        notificationAudioRef.current.play().then(() => {
-          notificationAudioRef.current?.pause();
-          notificationAudioRef.current!.currentTime = 0;
-          if (notificationAudioRef.current) {
-            notificationAudioRef.current.volume = originalVolume; // Restore volume
-          }
-        }).catch(() => {});
-        document.removeEventListener('click', unlockAudio);
+        const audio = notificationAudioRef.current;
+        audio.play().then(() => {
+          audio.pause();
+          audio.currentTime = 0;
+          console.log("Audio system unlocked");
+          document.removeEventListener('click', unlockAudio);
+          document.removeEventListener('touchstart', unlockAudio);
+        }).catch(err => {
+          console.log("Audio unlock failed, will retry on next interaction", err);
+        });
       }
     };
     document.addEventListener('click', unlockAudio);
+    document.addEventListener('touchstart', unlockAudio);
   }, []);
 
   const playNotification = () => {
     if (notificationAudioRef.current) {
-      const playPromise = notificationAudioRef.current.play();
+      const audio = notificationAudioRef.current;
+      
+      // Reset to beginning if already playing
+      audio.pause();
+      audio.currentTime = 0;
+      
+      const playPromise = audio.play();
       if (playPromise !== undefined) {
         playPromise.catch(error => {
-          console.log("Playback failed:", error);
-          // Fallback: try to re-load and play
-          notificationAudioRef.current?.load();
-          notificationAudioRef.current?.play().catch(() => {});
+          console.log("Playback failed, retrying...", error);
+          // Fallback: reload and play
+          audio.load();
+          audio.play().catch(e => console.error("Final playback attempt failed", e));
         });
       }
     }
@@ -1047,6 +1056,7 @@ export default function App() {
             toggleTheme={toggleTheme}
             onImageClick={(src) => setPreviewImage(src)}
             pendingVerificationsCount={pendingVerificationsCount}
+            onPlaySound={playNotification}
           >
             <Routes>
               <Route path="/" element={<Home />} />
@@ -1056,7 +1066,13 @@ export default function App() {
               <Route path="/rf-ai" element={<RFAI />} />
               <Route path="/kit/:type" element={<FileManager isAdmin={userProfile?.role === 'admin' || user?.email?.toLowerCase() === 'rauf2289@gmail.com'} />} />
               <Route path="/shop" element={<Shop isAdmin={userProfile?.role === 'admin' || user?.email?.toLowerCase() === 'rauf2289@gmail.com'} />} />
-              <Route path="/messages" element={<Messages userProfile={userProfile} onImageClick={(src) => setPreviewImage(src)} />} />
+              <Route path="/messages" element={
+                <Messages 
+                  userProfile={userProfile} 
+                  onImageClick={(src) => setPreviewImage(src)} 
+                  onPlaySound={playNotification}
+                />
+              } />
               <Route path="/contact" element={<Contact />} />
               <Route path="/admin" element={<AdminPanel isAdmin={userProfile?.role === 'admin' || user?.email?.toLowerCase() === 'rauf2289@gmail.com'} />} />
               <Route path="/masters" element={<NearbyMasters currentUserProfile={userProfile} isAdmin={userProfile?.role === 'admin' || user?.email?.toLowerCase() === 'rauf2289@gmail.com'} onImageClick={(src) => setPreviewImage(src)} />} />

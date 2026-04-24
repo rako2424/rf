@@ -9,7 +9,15 @@ import { motion, AnimatePresence } from 'motion/react';
 import { useSearchParams } from 'react-router-dom';
 import { handleFirestoreError, OperationType } from '../utils/errorHandling';
 
-export default function Messages({ userProfile, onImageClick }: { userProfile: UserProfile | null, onImageClick?: (src: string) => void }) {
+export default function Messages({ 
+  userProfile, 
+  onImageClick, 
+  onPlaySound 
+}: { 
+  userProfile: UserProfile | null, 
+  onImageClick?: (src: string) => void,
+  onPlaySound?: () => void
+}) {
   const [searchParams, setSearchParams] = useSearchParams();
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null);
@@ -77,6 +85,21 @@ export default function Messages({ userProfile, onImageClick }: { userProfile: U
       const unread = new Set<string>();
       
       const allMsgs = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Message));
+
+      let hasNewIncoming = false;
+
+      snapshot.docChanges().forEach((change) => {
+        if (change.type === 'added') {
+          const data = change.doc.data();
+          if (!initialLoad.current && data.receiverId === userProfile.uid) {
+            hasNewIncoming = true;
+          }
+        }
+      });
+      
+      if (hasNewIncoming && onPlaySound) {
+        onPlaySound();
+      }
 
       snapshot.docs.forEach((doc) => {
         const data = doc.data();
